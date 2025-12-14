@@ -1,0 +1,172 @@
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+model User {
+  id        Int     @id @default(autoincrement())
+  nombre    String
+  apellido  String
+  apellidoP String?    // ← NUEVO (apellido paterno)
+  apellidoM String?    // ← NUEVO (apellido materno)
+  ci        String?    // ← NUEVO (carnet)
+
+  email     String  @unique
+  password  String
+  activo    Boolean @default(true)
+
+  roles      UserRole[]
+  docente    Docente?
+  estudiante Estudiante?
+  apoderado  Apoderado?
+  tutor      Tutor?           // ← NUEVO
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Role {
+  id          Int     @id @default(autoincrement())
+  nombre      String  @unique
+  descripcion String?
+
+  users UserRole[]
+}
+
+model UserRole {
+  id     Int @id @default(autoincrement())
+  userId Int
+  roleId Int
+
+  user User @relation(fields: [userId], references: [id])
+  role Role @relation(fields: [roleId], references: [id])
+
+  @@unique([userId, roleId])
+}
+
+model Docente {
+  id       Int     @id @default(autoincrement())
+  userId   Int     @unique
+  titulo   String?
+  telefono String?
+
+  user      User              @relation(fields: [userId], references: [id])
+  materias  MateriaDocente[]
+}
+
+model Estudiante {
+  id              Int       @id @default(autoincrement())
+  userId          Int       @unique
+  codigoAlumno    String    @unique
+  fechaNacimiento DateTime?
+  direccion       String?
+
+  user User @relation(fields: [userId], references: [id])
+
+  asistencias Asistencia[]
+  notas       Nota[]
+  incidencias Incidencia[]
+
+  cursoId Int?
+  curso   Curso? @relation(fields: [cursoId], references: [id])
+
+  tutorId Int?        // ← NUEVO (relación directa)
+  tutor   Tutor? @relation(fields: [tutorId], references: [id])
+}
+
+model Apoderado {
+  id         Int     @id @default(autoincrement())
+  userId     Int     @unique
+  parentesco String?
+
+  user User @relation(fields: [userId], references: [id])
+}
+
+/* ============================
+   NUEVO MODELO: TUTOR
+=============================== */
+model Tutor {
+  id        Int    @id @default(autoincrement())
+  userId    Int    @unique
+
+  telefono  String?
+  correoAlt String?  // correo Gmail
+
+  user       User       @relation(fields: [userId], references: [id])
+  estudiantes Estudiante[]   // un tutor tiene varios hijos
+}
+
+model Materia {
+  id        Int      @id @default(autoincrement())
+  nombre    String   @unique
+
+  docentes    MateriaDocente[]
+  cursos      CursoMateria[]
+  asistencias Asistencia[]
+  notas       Nota[]
+}
+
+model Curso {
+  id        Int     @id @default(autoincrement())
+  nombre    String  @unique
+
+  materias    CursoMateria[]
+  estudiantes Estudiante[]
+}
+
+model CursoMateria {
+  id         Int      @id @default(autoincrement())
+  cursoId    Int
+  materiaId  Int
+
+  curso      Curso    @relation(fields: [cursoId], references: [id])
+  materia    Materia  @relation(fields: [materiaId], references: [id])
+
+  @@unique([cursoId, materiaId])
+}
+
+model Asistencia {
+  id           Int      @id @default(autoincrement())
+  estudianteId Int
+  materiaId    Int
+  fecha        DateTime
+  estado       String
+
+  estudiante Estudiante @relation(fields: [estudianteId], references: [id])
+  materia    Materia    @relation(fields: [materiaId], references: [id])
+}
+
+model Incidencia {
+  id           Int      @id @default(autoincrement())
+  estudianteId Int
+  descripcion  String
+  fecha        DateTime
+
+  estudiante Estudiante @relation(fields: [estudianteId], references: [id])
+}
+
+model Nota {
+  id           Int      @id @default(autoincrement())
+  estudianteId Int
+  materiaId    Int
+  nota         Float
+  fecha        DateTime
+
+  estudiante Estudiante @relation(fields: [estudianteId], references: [id])
+  materia    Materia    @relation(fields: [materiaId], references: [id])
+}
+
+model MateriaDocente {
+  id         Int      @id @default(autoincrement())
+  materiaId  Int
+  docenteId  Int
+
+  materia    Materia  @relation(fields: [materiaId], references: [id])
+  docente    Docente  @relation(fields: [docenteId], references: [id])
+
+  @@unique([materiaId, docenteId])
+}
