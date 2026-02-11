@@ -9,10 +9,26 @@ export const getEstudiantes = async (req, res) => {
     const estudiantes = await prisma.estudiante.findMany({
       include: {
         user: {
-          include: {
-            roles: {
-              include: { role: true }
-            }
+          select: {
+            id: true,
+            email: true,
+            nombre: true,
+            apellido: true
+          }
+        },
+        curso: {
+          select: {
+            id: true,
+            nombre: true
+          }
+        },
+        tutor: {
+          select: {
+            id: true,
+            nombre: true,
+            dni: true,
+            email: true,
+            telefono: true
           }
         }
       }
@@ -20,88 +36,139 @@ export const getEstudiantes = async (req, res) => {
 
     res.json(estudiantes);
   } catch (error) {
-    console.error("❌ Error al obtener estudiantes:", error);
-    res.status(500).json({ message: "Error al obtener estudiantes" });
+  // ⚠️ Email duplicado (User.email)
+  if (error.code === "P2002") {
+    return res.status(400).json({
+      message: "Ya existe un usuario con ese DNI (correo duplicado)"
+    });
   }
+
+  console.error("❌ Error creando estudiante:", error);
+  res.status(500).json({ message: "Error creando estudiante" });
+}
 };
 
 /* =========================================================
-   📌 CREAR ESTUDIANTE + USUARIO ASOCIADO
+   📌 CREAR ESTUDIANTE + USUARIO + TUTOR (AUTOMÁTICO)
    ========================================================= */
 export const createEstudiante = async (req, res) => {
   try {
     const {
       nombre,
       apellido,
-      email,
+      dni,
+      cursoId,
       fechaNacimiento,
       direccion,
+      tutorNombre,
+      tutorEmail,
+      tutorTelefono,
+      tutorDni
     } = req.body;
 
-    // 1️⃣ Validar datos obligatorios
-    if (!nombre || !apellido || !email) {
-      return res.status(400).json({
-        message: "Nombre, apellido y email son obligatorios"
-      });
+    if (!dni || !cursoId || !tutorNombre || !tutorEmail || !tutorDni) {
+      return res.status(400).json({ message: "Faltan datos obligatorios" });
     }
 
-    // 2️⃣ Validar email único
-    const emailExist = await prisma.user.findUnique({ where: { email } });
-    if (emailExist)
-      return res.status(400).json({ message: "El correo ya está registrado" });
+    // 1️⃣ Verificar estudiante duplicado
+    const existe = await prisma.estudiante.findUnique({ where: { dni } });
+    if (existe) {
+      return res.status(400).json({ message: "El estudiante ya existe" });
+    }
 
-    // 3️⃣ Generar código de alumno
-    const total = await prisma.estudiante.count();
-    const codigoAlumno = `ALU-${new Date().getFullYear()}-${String(
-      total + 1
-    ).padStart(4, "0")}`;
-
-    // 4️⃣ Password por defecto
-    const hashed = await bcrypt.hash("123456", 10);
-
-    // 5️⃣ Obtener rol ESTUDIANTE
+    // 2️⃣ Roles
     const rolEstudiante = await prisma.role.findUnique({
-      where: { nombre: "ESTUDIANTE" },
+      where: { nombre: "ESTUDIANTE" }
+    });
+    const rolApoderado = await prisma.role.findUnique({
+      where: { nombre: "APODERADO" }
     });
 
-    if (!rolEstudiante) {
-      return res.status(500).json({
-        message: "El rol ESTUDIANTE no existe en la base de datos",
+    if (!rolEstudiante || !rolApoderado) {
+      return res.status(500).json({ message: "Roles no configurados" });
+    }
+
+    // 3️⃣ Crear o reutilizar TUTOR
+    let tutor = await prisma.tutor.findUnique({
+      where: { dni: tutorDni }
+    });
+
+    if (!tutor) {
+      tutor = await prisma.tutor.create({
+        data: {
+          nombre: tutorNombre,
+          dni: tutorDni,
+          email: tutorEmail,
+          telefono: tutorTelefono
+        }
       });
     }
 
-    // 6️⃣ Crear usuario
-    const user = await prisma.user.create({
+    // 4️⃣ Crear o reutilizar USER APODERADO
+    let userApoderado = await prisma.user.findUnique({
+      where: { email: tutorEmail }
+    });
+
+    if (!userApoderado) {
+      userApoderado = await prisma.user.create({
+        data: {
+          nombre: tutorNombre,
+          apellido: "Apoderado",
+          email: tutorEmail,
+          password: await bcrypt.hash(tutorDni, 10),
+          activo: true,
+          roles: {
+            create: [{ roleId: rolApoderado.id }]
+          }
+        }
+      });
+    }
+
+    // 5️⃣ Crear APODERADO (CLAVE 🔥)
+    let apoderado = await prisma.apoderado.findUnique({
+      where: { tutorId: tutor.id }
+    });
+
+    if (!apoderado) {
+      apoderado = await prisma.apoderado.create({
+        data: {
+          userId: userApoderado.id,
+          tutorId: tutor.id,
+          parentesco: "Tutor"
+        }
+      });
+    }
+
+    // 6️⃣ Crear USER ESTUDIANTE
+    const userEstudiante = await prisma.user.create({
       data: {
         nombre,
         apellido,
-        email,
-        password: hashed,
+        email: `${dni}@sdblasvillas.du.bo`,
+        password: await bcrypt.hash(dni, 10),
+        activo: true,
         roles: {
-          create: { roleId: rolEstudiante.id },
-        },
-      },
-      include: {
-        roles: { include: { role: true } }
+          create: [{ roleId: rolEstudiante.id }]
+        }
       }
     });
 
-    // 7️⃣ Crear estudiante
+    // 7️⃣ Crear ESTUDIANTE
     const estudiante = await prisma.estudiante.create({
       data: {
-        userId: user.id,
-        codigoAlumno,
+        dni,
+        userId: userEstudiante.id,
+        cursoId: Number(cursoId),
+        tutorId: tutor.id,
         fechaNacimiento: fechaNacimiento ? new Date(fechaNacimiento) : null,
-        direccion,
-      },
-      include: { user: true },
+        direccion
+      }
     });
 
-    return res.json({
-      message: "Estudiante creado con éxito",
-      estudiante,
+    res.status(201).json({
+      message: "Estudiante creado correctamente",
+      estudiante
     });
-
   } catch (error) {
     console.error("❌ Error creando estudiante:", error);
     res.status(500).json({ message: "Error creando estudiante" });
@@ -114,28 +181,25 @@ export const createEstudiante = async (req, res) => {
 export const updateEstudiante = async (req, res) => {
   try {
     const { id } = req.params;
-    const { nombre, apellido, direccion } = req.body;
+    const { direccion, cursoId } = req.body;
 
-    const est = await prisma.estudiante.findUnique({
-      where: { id: Number(id) },
+    const estudiante = await prisma.estudiante.findUnique({
+      where: { id: Number(id) }
     });
 
-    if (!est) return res.status(404).json({ message: "No encontrado" });
+    if (!estudiante) {
+      return res.status(404).json({ message: "Estudiante no encontrado" });
+    }
 
-    // Actualizar estudiante
     await prisma.estudiante.update({
       where: { id: Number(id) },
-      data: { direccion },
-    });
-
-    // Actualizar datos del usuario
-    await prisma.user.update({
-      where: { id: est.userId },
-      data: { nombre, apellido },
+      data: {
+        direccion,
+        cursoId: cursoId ? Number(cursoId) : undefined
+      }
     });
 
     res.json({ message: "Estudiante actualizado correctamente" });
-
   } catch (error) {
     console.error("❌ Error al actualizar estudiante:", error);
     res.status(500).json({ message: "Error al actualizar" });
@@ -143,26 +207,46 @@ export const updateEstudiante = async (req, res) => {
 };
 
 /* =========================================================
-   📌 ELIMINAR ESTUDIANTE + USUARIO ASOCIADO
+   📌 ELIMINAR ESTUDIANTE + USUARIO
    ========================================================= */
 export const deleteEstudiante = async (req, res) => {
   try {
     const { id } = req.params;
 
-    const est = await prisma.estudiante.findUnique({
+    const estudiante = await prisma.estudiante.findUnique({
       where: { id: Number(id) },
     });
 
-    if (!est) return res.status(404).json({ message: "No encontrado" });
+    if (!estudiante) {
+      return res.status(404).json({ message: "Estudiante no encontrado" });
+    }
 
-    // Borrar estudiante
+    // 1️⃣ Eliminar dependencias del estudiante
+    await prisma.asistencia.deleteMany({
+      where: { estudianteId: estudiante.id },
+    });
+
+    await prisma.nota.deleteMany({
+      where: { estudianteId: estudiante.id },
+    });
+
+    await prisma.incidencia.deleteMany({
+      where: { estudianteId: estudiante.id },
+    });
+
+    // 2️⃣ Eliminar estudiante
     await prisma.estudiante.delete({
-      where: { id: Number(id) },
+      where: { id: estudiante.id },
     });
 
-    // Borrar usuario asociado
+    // 3️⃣ Eliminar roles del usuario (CLAVE 🔥)
+    await prisma.userRole.deleteMany({
+      where: { userId: estudiante.userId },
+    });
+
+    // 4️⃣ Eliminar usuario
     await prisma.user.delete({
-      where: { id: est.userId },
+      where: { id: estudiante.userId },
     });
 
     res.json({ message: "Estudiante eliminado correctamente" });
@@ -172,3 +256,36 @@ export const deleteEstudiante = async (req, res) => {
     res.status(500).json({ message: "Error al eliminar" });
   }
 };
+
+/* =========================================================
+   📌 OBTENER ESTUDIANTES POR CURSO (PROFESOR)
+   ========================================================= */
+export const getEstudiantesByCursoProfesor = async (req, res) => {
+  try {
+    const { cursoId } = req.params;
+
+    const estudiantes = await prisma.estudiante.findMany({
+      where: {
+        cursoId: Number(cursoId)
+      },
+      include: {
+        user: {
+          select: {
+            id: true,
+            nombre: true,
+            apellido: true,
+            email: true
+          }
+        }
+      }
+    });
+
+    res.json(estudiantes);
+  } catch (error) {
+    console.error("❌ Error obteniendo estudiantes por curso:", error);
+    res.status(500).json({
+      message: "Error al obtener estudiantes del curso"
+    });
+  }
+};
+

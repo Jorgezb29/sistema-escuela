@@ -1,5 +1,10 @@
 /* ======= ESTILOS GENERALES ======= */
 
+.table thead th {
+  color: #212529 !important; /* color oficial bootstrap */
+}
+
+
 body {
   background-color: #f5f7fa !important;
   font-family: "Segoe UI", sans-serif;

@@ -9,7 +9,7 @@ import {
   FiLayers,
   FiClipboard,
   FiAlertTriangle,
-  FiLogOut,
+  FiLogOut
 } from "react-icons/fi";
 import "../styles/sidebar.css";
 
@@ -18,10 +18,12 @@ export default function AdminLayout() {
 
   return (
     <div className="d-flex flex-column vh-100">
-
       {/* NAVBAR SUPERIOR */}
-      <Navbar bg="primary" variant="dark" className="px-4 shadow-sm d-flex align-items-center">
-        
+      <Navbar
+        bg="primary"
+        variant="dark"
+        className="px-4 shadow-sm d-flex align-items-center"
+      >
         <img
           src="/image.jpg" // << agrega la imagen en /public
           alt="Logo Colegio"
@@ -29,9 +31,7 @@ export default function AdminLayout() {
           className="me-3 rounded-circle border border-light"
         />
 
-        <Navbar.Brand className="fw-bold fs-5">
-          Sistema Escolar
-        </Navbar.Brand>
+        <Navbar.Brand className="fw-bold fs-5">Sistema Escolar</Navbar.Brand>
 
         <div className="ms-auto">
           <Button variant="light" size="sm" onClick={logout}>
@@ -44,13 +44,11 @@ export default function AdminLayout() {
       {/* CONTENIDO CENTRAL */}
       <Container fluid className="flex-grow-1">
         <Row className="h-100">
-
           {/* SIDEBAR */}
           <Col md={2} className="sidebar bg-light border-end shadow-sm p-0">
             <Nav className="flex-column">
-
               <NavLink to="" end className="menu-item nav-link">
-                <FiHome className="me-2" /> Dashboard
+                <FiHome className="me-2" /> Menu Principal
               </NavLink>
 
               <NavLink to="estudiantes" className="menu-item nav-link">
@@ -81,6 +79,9 @@ export default function AdminLayout() {
                 <FiAlertTriangle className="me-2" /> Incidencias
               </NavLink>
 
+              <NavLink to="/usuarios" className="nav-link">
+                👤 Usuarios
+              </NavLink>
             </Nav>
           </Col>
 
@@ -92,7 +93,6 @@ export default function AdminLayout() {
           >
             <Outlet />
           </Col>
-
         </Row>
       </Container>
     </div>

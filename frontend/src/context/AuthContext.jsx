@@ -30,6 +30,12 @@ export const AuthProvider = ({ children }) => {
     // guardar en localStorage
     localStorage.setItem("user", JSON.stringify(finalUser));
     localStorage.setItem("token", token);
+   
+
+   
+   
+
+
 
     setUser(finalUser);
   };

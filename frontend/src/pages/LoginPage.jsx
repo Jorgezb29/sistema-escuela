@@ -26,9 +26,7 @@ export default function LoginPage() {
 
       const user = {
         ...res.data.user,
-        roles: Array.isArray(res.data.user.roles)
-          ? res.data.user.roles
-          : [],
+        roles: Array.isArray(res.data.user.roles) ? res.data.user.roles : []
       };
 
       const token = res.data.token;
@@ -52,11 +50,10 @@ export default function LoginPage() {
         return;
       }
 
-      if (user.roles.includes("TUTOR")) {
-        navigate("/tutor", { replace: true });
+      if (user.roles.includes("APODERADO")) {
+        navigate("/apoderado", { replace: true });
         return;
       }
-
       setError("El usuario no tiene permisos asignados");
     } catch (err) {
       console.error("Error login:", err);
@@ -90,9 +87,7 @@ export default function LoginPage() {
             </div>
 
             {error && (
-              <div className="alert alert-danger py-2 text-center">
-                {error}
-              </div>
+              <div className="alert alert-danger py-2 text-center">{error}</div>
             )}
 
             <Form onSubmit={handleSubmit}>
@@ -102,9 +97,7 @@ export default function LoginPage() {
                   type="email"
                   placeholder="usuario@sdblasvillas.edu.bo"
                   value={form.email}
-                  onChange={(e) =>
-                    setForm({ ...form, email: e.target.value })
-                  }
+                  onChange={(e) => setForm({ ...form, email: e.target.value })}
                   required
                 />
               </Form.Group>

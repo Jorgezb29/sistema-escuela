@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
-import api from "../api";
+import { useAuth } from "../context/AuthContext";
+import client from "../api/client";
 import {
   Card,
   Row,
@@ -12,6 +13,7 @@ import {
 } from "react-bootstrap";
 
 export default function IncidenciasPage() {
+  const { user, loading } = useAuth(); 
   const [incidencias, setIncidencias] = useState([]);
   const [estudiantes, setEstudiantes] = useState([]);
 
@@ -22,23 +24,37 @@ export default function IncidenciasPage() {
   });
 
   useEffect(() => {
-    cargarIncidencias();
-    cargarEstudiantes();
-  }, []);
+  if (loading) return;   // ⏳ espera AuthContext
+  if (!user) return;     // 🚫 sin sesión
+
+  cargarIncidencias();
+  cargarEstudiantes();
+}, [loading, user]);
 
   const cargarIncidencias = async () => {
-    const res = await api.get("/incidencias");
-    setIncidencias(res.data);
-  };
+  try {
+    const res = await client.get("/incidencias");
+    setIncidencias(Array.isArray(res.data) ? res.data : []);
+  } catch (error) {
+    console.warn("No se pudieron cargar incidencias", error.response?.status);
+    setIncidencias([]);
+  }
+};
+
 
   const cargarEstudiantes = async () => {
-    const res = await api.get("/estudiantes");
-    setEstudiantes(res.data);
-  };
+  try {
+    const res = await client.get("/estudiantes");
+    setEstudiantes(Array.isArray(res.data) ? res.data : []);
+  } catch (error) {
+    console.warn("No se pudieron cargar estudiantes", error.response?.status);
+    setEstudiantes([]);
+  }
+};
 
   const crearIncidencia = async (e) => {
     e.preventDefault();
-    await api.post("/incidencias", form);
+    await client.post("/incidencias", form);
     setForm({ estudianteId: "", descripcion: "", fecha: "" });
     cargarIncidencias();
   };
@@ -65,19 +81,29 @@ export default function IncidenciasPage() {
                 <Form.Group className="mb-3">
                   <Form.Label>Estudiante</Form.Label>
                   <Form.Select
-                    value={form.estudianteId}
-                    onChange={(e) =>
-                      setForm({ ...form, estudianteId: e.target.value })
-                    }
-                    required
-                  >
-                    <option value="">Seleccione estudiante</option>
-                    {estudiantes.map((e) => (
-                      <option key={e.id} value={e.id}>
-                        {e.user.nombre} {e.user.apellido}
-                      </option>
-                    ))}
-                  </Form.Select>
+  value={form.estudianteId}
+  onChange={(e) =>
+    setForm({ ...form, estudianteId: e.target.value })
+  }
+  required
+>
+  <option value="">Seleccione estudiante</option>
+
+  {estudiantes.map((e) => {
+    const nombre = e.user?.nombre || "Sin nombre";
+    const apellido = e.user?.apellido || "";
+    const dni = e.dni || "";
+    const email = e.user?.email || "";
+
+    return (
+      <option key={e.id} value={e.id}>
+        {nombre} {apellido} — {dni || email}
+      </option>
+    );
+  })}
+</Form.Select>
+
+
                 </Form.Group>
 
                 <Form.Group className="mb-3">

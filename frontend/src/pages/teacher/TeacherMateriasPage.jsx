@@ -1,22 +1,24 @@
+import client from "../../api/client";
 import { useEffect, useState } from "react";
-import api from "../../api";
 
 export default function TeacherMateriasPage() {
   const [materias, setMaterias] = useState([]);
 
   useEffect(() => {
-    api.get("/teacher/materias")
-      .then(res => setMaterias(res.data))
-      .catch(() => alert("Error cargando materias"));
+    client.get("/teacher/materias").then(res => setMaterias(res.data));
   }, []);
 
   return (
     <div>
-      <h3 className="fw-bold mb-3">📘 Materias que dicto</h3>
-
+      <h3>Mis Materias</h3>
       <ul className="list-group">
         {materias.map(m => (
-          <li key={m.id} className="list-group-item">{m.nombre}</li>
+          <li key={m.id} className="list-group-item">
+            <strong>{m.nombre}</strong>
+            <div className="text-muted">
+              Cursos: {m.cursos.map(c => c.nombre).join(", ")}
+            </div>
+          </li>
         ))}
       </ul>
     </div>

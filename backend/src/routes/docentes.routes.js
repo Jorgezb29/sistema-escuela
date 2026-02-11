@@ -1,11 +1,11 @@
 import { Router } from "express";
-
 import {
   getDocentes,
   createDocente,
   updateDocente,
   deleteDocente
 } from "../controllers/docentes.controller.js";
+import { authMiddleware } from "../middlewares/auth.middleware.js";
 
 const router = Router();
 
@@ -13,16 +13,16 @@ const router = Router();
    📌 RUTAS DEL MÓDULO DOCENTES
    =========================================== */
 
-// Obtener todos los docentes
-router.get("/", getDocentes);
+// Listar docentes (ADMIN / DOCENTE)
+router.get("/", authMiddleware, getDocentes);
 
-// Crear nuevo docente
-router.post("/", createDocente);
+// Crear docente (ADMIN)
+router.post("/", authMiddleware, createDocente);
 
-// Actualizar docente
-router.put("/:id", updateDocente);
+// Actualizar docente (ADMIN)
+router.put("/:id", authMiddleware, updateDocente);
 
-// Eliminar docente
-router.delete("/:id", deleteDocente);
+// Eliminar docente (ADMIN)
+router.delete("/:id", authMiddleware, deleteDocente);
 
 export default router;

@@ -1,5 +1,7 @@
 import { useEffect, useState } from "react";
-import api from "../api";
+import { useAuth } from "../context/AuthContext";
+import client from "../api/client";
+
 import {
   Card,
   Row,
@@ -12,6 +14,7 @@ import {
 } from "react-bootstrap";
 
 export default function NotasPage() {
+  const { user, loading } = useAuth();
   const [notas, setNotas] = useState([]);
   const [estudiantes, setEstudiantes] = useState([]);
   const [materias, setMaterias] = useState([]);
@@ -24,32 +27,60 @@ export default function NotasPage() {
   });
 
   useEffect(() => {
-    cargarNotas();
-    cargarEstudiantes();
-    cargarMaterias();
-  }, []);
+  if (loading) return;   // ⏳ espera AuthContext
+  if (!user) return;     // 🚫 sin sesión no llamar API
+
+  cargarEstudiantes();
+  cargarMaterias();
+  cargarNotas();
+}, [loading, user]);
+
 
   const cargarNotas = async () => {
-    const res = await api.get("/notas");
-    setNotas(res.data);
-  };
+  try {
+    const res = await client.get("/notas");
+    setNotas(Array.isArray(res.data) ? res.data : []);
+  } catch (error) {
+    setNotas([]);
+  }
+};
+
 
   const cargarEstudiantes = async () => {
-    const res = await api.get("/estudiantes");
-    setEstudiantes(res.data);
-  };
+  try {
+    const res = await client.get("/estudiantes");
+    setEstudiantes(Array.isArray(res.data) ? res.data : []);
+  } catch (error) {
+    console.warn("No se pudieron cargar estudiantes", error.response?.status);
+    setEstudiantes([]);
+  }
+};
+
 
   const cargarMaterias = async () => {
-    const res = await api.get("/materias");
-    setMaterias(res.data);
-  };
+  try {
+    const res = await client.get("/materias");
+    setMaterias(Array.isArray(res.data) ? res.data : []);
+  } catch (error) {
+    setMaterias([]);
+  }
+};
+
 
   const crearNota = async (e) => {
-    e.preventDefault();
-    await api.post("/notas", form);
-    setForm({ estudianteId: "", materiaId: "", nota: "", fecha: "" });
-    cargarNotas();
-  };
+  e.preventDefault();
+
+  await client.post("/notas", {
+    ...form,
+    nota: Number(form.nota),
+    estudianteId: Number(form.estudianteId),
+    materiaId: Number(form.materiaId),
+  });
+
+  setForm({ estudianteId: "", materiaId: "", nota: "", fecha: "" });
+  cargarNotas();
+};
+
 
   return (
     <div>
@@ -73,19 +104,28 @@ export default function NotasPage() {
                 <Form.Group className="mb-3">
                   <Form.Label>Estudiante</Form.Label>
                   <Form.Select
-                    value={form.estudianteId}
-                    onChange={(e) =>
-                      setForm({ ...form, estudianteId: e.target.value })
-                    }
-                    required
-                  >
-                    <option value="">Seleccione estudiante</option>
-                    {estudiantes.map((e) => (
-                      <option key={e.id} value={e.id}>
-                        {e.user.nombre} {e.user.apellido}
-                      </option>
-                    ))}
-                  </Form.Select>
+  value={form.estudianteId}
+  onChange={(e) =>
+    setForm({ ...form, estudianteId: e.target.value })
+  }
+  required
+>
+  <option value="">Seleccione estudiante</option>
+
+  {estudiantes.map((e) => {
+    const nombre = e.user?.nombre || "Sin nombre";
+    const apellido = e.user?.apellido || "";
+    const dni = e.dni || "";
+    const email = e.user?.email || "";
+
+    return (
+      <option key={e.id} value={e.id}>
+        {nombre} {apellido} — {dni || email}
+      </option>
+    );
+  })}
+</Form.Select>
+
                 </Form.Group>
 
                 <Form.Group className="mb-3">

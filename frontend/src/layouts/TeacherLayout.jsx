@@ -1,22 +1,17 @@
 import { Outlet, NavLink } from "react-router-dom";
 import { Button, Navbar, Container, Nav } from "react-bootstrap";
 import { useAuth } from "../context/AuthContext";
-import {
-  FiHome,
-  FiBookOpen,
-  FiLogOut,
-  FiUserCheck
-} from "react-icons/fi";
+import { FiHome, FiBookOpen, FiLogOut, FiUserCheck } from "react-icons/fi";
 
 export default function TeacherLayout() {
   const { logout, user } = useAuth();
+  
 
   return (
     <div className="d-flex flex-column vh-100">
-
       {/* NAVBAR SUPERIOR */}
       <Navbar
-        bg="dark"
+        bg="danger"
         variant="dark"
         className="px-4 shadow-sm d-flex align-items-center"
       >
@@ -47,18 +42,28 @@ export default function TeacherLayout() {
       </Navbar>
 
       {/* MENÚ */}
+      {/* MENÚ */}
       <Nav className="bg-light border-bottom px-3 py-2 shadow-sm">
-
-        <NavLink to="/teacher" end className="nav-link menu-teacher">
+        <NavLink
+          to="/teacher"
+          end
+          className={({ isActive }) =>
+            `nav-link menu-teacher ${isActive ? "active" : ""}`
+          }
+        >
           <FiHome className="me-2" />
           Inicio
         </NavLink>
 
-        <NavLink to="/teacher/materias" className="nav-link menu-teacher">
+        <NavLink
+          to="/teacher/materias"
+          className={({ isActive }) =>
+            `nav-link menu-teacher ${isActive ? "active" : ""}`
+          }
+        >
           <FiBookOpen className="me-2" />
           Mis Materias
         </NavLink>
-
       </Nav>
 
       {/* CONTENIDO */}

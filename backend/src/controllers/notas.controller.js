@@ -34,3 +34,51 @@ export const deleteNota = async (req, res) => {
 
   res.json({ message: "Nota eliminada" });
 };
+
+
+/* =========================================================
+   📌 OBTENER NOTAS POR CURSO Y MATERIA (PROFESOR)
+   ========================================================= */
+export const getNotasByCursoMateriaProfesor = async (req, res) => {
+  try {
+    const { cursoId, materiaId } = req.params;
+    const docenteId = req.user.id;
+
+    const notas = await prisma.nota.findMany({
+      where: {
+        materiaId: Number(materiaId),
+        estudiante: {
+          cursoId: Number(cursoId),
+        },
+        materia: {
+          cursoMaterias: {
+            some: {
+              cursoId: Number(cursoId),
+              docenteId: docenteId,
+            },
+          },
+        },
+      },
+      include: {
+        estudiante: {
+          include: {
+            user: {
+              select: {
+                nombre: true,
+                apellido: true,
+              },
+            },
+          },
+        },
+        materia: true,
+      },
+    });
+
+    res.json(notas);
+  } catch (error) {
+    console.error("❌ Error obteniendo notas del profesor:", error);
+    res.status(500).json({
+      message: "Error al obtener notas",
+    });
+  }
+};

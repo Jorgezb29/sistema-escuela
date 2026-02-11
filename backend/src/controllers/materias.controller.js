@@ -1,33 +1,15 @@
 import { prisma } from "../server.js";
 
 /* =====================================================
-   📌 OBTENER TODAS LAS MATERIAS CON SUS DOCENTES
+   📌 OBTENER TODAS LAS MATERIAS CON DOCENTES Y CURSOS
    ===================================================== */
 export const getMaterias = async (req, res) => {
   try {
-    const materias = await prisma.materia.findMany({
-      include: {
-        docentes: {                 // MateriaDocente[]
-          include: {
-            docente: {              // Docente
-              include: {
-                user: true          // User del docente
-              }
-            }
-          }
-        },
-        cursos: {
-          include: {
-            curso: true             // Si tienes cursos asociados
-          }
-        }
-      }
-    });
-
+    const materias = await prisma.materia.findMany();
     res.json(materias);
   } catch (error) {
-    console.error("❌ Error al obtener materias:", error);
-    res.status(500).json({ message: "Error al obtener materias" });
+    console.error("❌ Error obteniendo materias:", error);
+    res.status(500).json({ message: "Error obteniendo materias" });
   }
 };
 
@@ -36,46 +18,83 @@ export const getMaterias = async (req, res) => {
    ===================================================== */
 export const createMateria = async (req, res) => {
   try {
-    const { nombre } = req.body;
+    const { nombre, cursoId } = req.body;
 
-    if (!nombre || nombre.trim() === "") {
-      return res.status(400).json({ message: "El nombre es obligatorio" });
+    if (!nombre || !cursoId) {
+      return res.status(400).json({ message: "Curso requerido" });
     }
 
-    const materia = await prisma.materia.create({
-      data: { nombre: nombre.trim() }
+    const result = await prisma.$transaction(async (tx) => {
+      // 1️⃣ Crear materia
+      const materia = await tx.materia.create({
+        data: {
+          nombre: nombre.toLowerCase().trim()
+        }
+      });
+
+      // 2️⃣ Asociar a curso
+      await tx.cursoMateria.create({
+        data: {
+          curso: {
+            connect: { id: Number(cursoId) }
+          },
+          materia: {
+            connect: { id: materia.id }
+          }
+        }
+      });
+
+      return materia;
     });
 
-    res.json(materia);
-
+    res.status(201).json(result);
   } catch (error) {
-    console.error("❌ Error creando materia:", error);
+    console.error("❌ ERROR REAL PRISMA:", {
+      code: error.code,
+      meta: error.meta,
+      message: error.message
+    });
+
+    if (error.code === "P2002") {
+      return res.status(400).json({
+        message: "Materia duplicada (restricción única)"
+      });
+    }
+
+    if (error.code === "P2003") {
+      return res.status(400).json({
+        message: "Curso no existe (FK inválida)"
+      });
+    }
+
     res.status(500).json({ message: "Error creando materia" });
   }
 };
 
 /* =====================================================
-   📌 ASIGNAR DOCENTES A UNA MATERIA (máximo 2)
+   📌 ASIGNAR DOCENTES A UNA MATERIA (máx. 2)
    ===================================================== */
 export const assignDocentesToMateria = async (req, res) => {
   try {
     const materiaId = Number(req.params.id);
-    const { docentes } = req.body; // Ej: [1, 2]
+    const { docentes } = req.body;
 
     if (!Array.isArray(docentes)) {
-      return res.status(400).json({ message: "Formato inválido: docentes debe ser un array" });
+      return res.status(400).json({
+        message: "El campo docentes debe ser un arreglo de IDs"
+      });
     }
 
     if (docentes.length > 2) {
-      return res.status(400).json({ message: "Máximo 2 docentes por materia" });
+      return res.status(400).json({
+        message: "Una materia puede tener máximo 2 docentes"
+      });
     }
 
-    // Eliminar asignaciones previas
     await prisma.materiaDocente.deleteMany({
       where: { materiaId }
     });
 
-    // Crear nuevas asignaciones
     if (docentes.length > 0) {
       await prisma.materiaDocente.createMany({
         data: docentes.map((docenteId) => ({
@@ -86,7 +105,6 @@ export const assignDocentesToMateria = async (req, res) => {
     }
 
     res.json({ message: "Docentes asignados correctamente" });
-
   } catch (error) {
     console.error("❌ Error asignando docentes:", error);
     res.status(500).json({ message: "Error asignando docentes" });

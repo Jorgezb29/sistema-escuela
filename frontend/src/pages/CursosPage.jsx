@@ -15,32 +15,44 @@ export default function CursosPage() {
   const [nombre, setNombre] = useState("");
 
   const cargar = async () => {
-    try {
-      const { data } = await client.get("/cursos");
-      setCursos(data);
-    } catch (error) {
-      console.error("❌ Error cargando cursos:", error);
+  try {
+    const { data } = await client.get("/cursos");
+
+    // Aseguramos que siempre sea un array
+    setCursos(Array.isArray(data) ? data : []);
+  } catch (error) {
+    console.error("❌ Error cargando cursos:", error);
+
+    // Mostrar alerta solo si el backend respondió con error real
+    if (error.response) {
+      alert(error.response.data?.message || "Error al cargar cursos");
     }
-  };
+  }
+};
+
 
   const crear = async (e) => {
     e.preventDefault();
+
     try {
       await client.post("/cursos", { nombre });
       setNombre("");
       cargar();
     } catch (error) {
-      console.error("❌ Error creando curso:", error);
+      const msg =
+        error.response?.data?.message || "Error al crear curso";
+      alert(msg);
     }
   };
 
   useEffect(() => {
-    cargar();
-  }, []);
+  client.get("/cursos")
+    .then(res => setCursos(res.data))
+    .catch(err => console.log(err));
+}, []);
 
   return (
     <div>
-      {/* TÍTULO */}
       <h2 className="fw-bold mb-4 d-flex align-items-center gap-2">
         <i className="bi bi-journal-bookmark-fill text-primary fs-3"></i>
         Gestión de Cursos
@@ -67,8 +79,7 @@ export default function CursosPage() {
                   />
                 </Form.Group>
 
-                <Button type="submit" variant="primary" className="w-100">
-                  <i className="bi bi-save me-2"></i>
+                <Button type="submit" className="w-100">
                   Guardar Curso
                 </Button>
               </Form>
@@ -84,7 +95,10 @@ export default function CursosPage() {
                 <InputGroup.Text>
                   <i className="bi bi-search"></i>
                 </InputGroup.Text>
-                <Form.Control placeholder="Buscar curso..." disabled />
+                <Form.Control
+                  placeholder="Buscar curso..."
+                  disabled
+                />
               </InputGroup>
 
               <Table hover responsive className="align-middle">
@@ -104,7 +118,7 @@ export default function CursosPage() {
                         <td className="fw-semibold">{c.nombre}</td>
                         <td className="text-center">
                           <span className="badge bg-primary">
-                            {c.materias ? c.materias.length : 0}
+                            {c.materias?.length || 0}
                           </span>
                         </td>
                       </tr>

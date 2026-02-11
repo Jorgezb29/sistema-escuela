@@ -8,10 +8,12 @@ export default function ApoderadoLayout() {
   return (
     <div className="d-flex flex-column vh-100">
       
-      <Navbar bg="warning" variant="dark" className="px-4 shadow-sm">
+      <Navbar bg="danger" variant="red" className="px-4 shadow-sm">
         <Navbar.Brand>Apoderado: {user.nombre}</Navbar.Brand>
         <div className="ms-auto">
-          <Button variant="dark" size="sm" onClick={logout}>Salir</Button>
+          <Button variant="dark" size="sm" onClick={logout}>
+            Salir
+          </Button>
         </div>
       </Navbar>
 
@@ -22,10 +24,14 @@ export default function ApoderadoLayout() {
           <Col md={2} className="bg-light border-end p-0">
             <Nav className="flex-column">
 
-              <NavLink to="" end className="menu-item nav-link">🏠 Inicio</NavLink>
-              <NavLink to="notas" className="menu-item nav-link">📝 Notas</NavLink>
-              <NavLink to="asistencias" className="menu-item nav-link">📅 Asistencia</NavLink>
-              <NavLink to="incidencias" className="menu-item nav-link">⚠ Incidencias</NavLink>
+              <NavLink to="" end className="menu-item nav-link">
+                Inicio
+              </NavLink>
+
+              {/* ✅ SIEMPRE IR PRIMERO A HIJOS */}
+              <NavLink to="hijos" className="menu-item nav-link">
+                 Mis hijos
+              </NavLink>
 
             </Nav>
           </Col>

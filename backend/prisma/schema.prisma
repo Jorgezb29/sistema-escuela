@@ -11,19 +11,17 @@ model User {
   id        Int     @id @default(autoincrement())
   nombre    String
   apellido  String
-  apellidoP String?    // ← NUEVO (apellido paterno)
-  apellidoM String?    // ← NUEVO (apellido materno)
-  ci        String?    // ← NUEVO (carnet)
+  apellidoP String?
+  apellidoM String?
 
-  email     String  @unique
-  password  String
-  activo    Boolean @default(true)
+  email    String  @unique
+  password String
+  activo   Boolean @default(true)
 
   roles      UserRole[]
   docente    Docente?
   estudiante Estudiante?
   apoderado  Apoderado?
-  tutor      Tutor?           // ← NUEVO
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -53,81 +51,101 @@ model Docente {
   userId   Int     @unique
   titulo   String?
   telefono String?
+  cursoMaterias CursoMateria[]
 
-  user      User              @relation(fields: [userId], references: [id])
-  materias  MateriaDocente[]
+  user     User             @relation(fields: [userId], references: [id])
+  materias MateriaDocente[]
 }
 
 model Estudiante {
   id              Int       @id @default(autoincrement())
   userId          Int       @unique
-  codigoAlumno    String    @unique
+  dni             String    @unique
   fechaNacimiento DateTime?
   direccion       String?
 
   user User @relation(fields: [userId], references: [id])
 
+  cursoId Int? 
+  curso   Curso? @relation(fields: [cursoId], references: [id])
+
+  tutorId Int?
+  tutor   Tutor? @relation(fields: [tutorId], references: [id])
+
+  apoderadoId Int?               // 👈 NUEVO
+  apoderado   Apoderado? @relation(fields: [apoderadoId], references: [id])
+
+
+  // ✅ RELACIONES INVERSAS (OBLIGATORIAS)
   asistencias Asistencia[]
   notas       Nota[]
   incidencias Incidencia[]
-
-  cursoId Int?
-  curso   Curso? @relation(fields: [cursoId], references: [id])
-
-  tutorId Int?        // ← NUEVO (relación directa)
-  tutor   Tutor? @relation(fields: [tutorId], references: [id])
 }
+
 
 model Apoderado {
   id         Int     @id @default(autoincrement())
   userId     Int     @unique
+  tutorId    Int     @unique 
   parentesco String?
 
   user User @relation(fields: [userId], references: [id])
+  tutor Tutor @relation(fields: [tutorId], references: [id])
+
+  estudiantes Estudiante[]   // 👈 hijos
 }
 
-/* ============================
-   NUEVO MODELO: TUTOR
-=============================== */
+/**
+ * ============================
+ * NUEVO MODELO: TUTOR
+ * ===============================
+ */
 model Tutor {
-  id        Int    @id @default(autoincrement())
-  userId    Int    @unique
+  id       Int     @id @default(autoincrement())
+  nombre   String
+  dni      String  @unique
+  email    String
+  telefono String?
 
-  telefono  String?
-  correoAlt String?  // correo Gmail
+  apoderado Apoderado?
 
-  user       User       @relation(fields: [userId], references: [id])
-  estudiantes Estudiante[]   // un tutor tiene varios hijos
-}
-
-model Materia {
-  id        Int      @id @default(autoincrement())
-  nombre    String   @unique
-
-  docentes    MateriaDocente[]
-  cursos      CursoMateria[]
-  asistencias Asistencia[]
-  notas       Nota[]
+  estudiantes Estudiante[]
 }
 
 model Curso {
-  id        Int     @id @default(autoincrement())
-  nombre    String  @unique
+  id     Int    @id @default(autoincrement())
+  nombre String @unique
 
   materias    CursoMateria[]
   estudiantes Estudiante[]
 }
 
-model CursoMateria {
-  id         Int      @id @default(autoincrement())
-  cursoId    Int
-  materiaId  Int
 
-  curso      Curso    @relation(fields: [cursoId], references: [id])
-  materia    Materia  @relation(fields: [materiaId], references: [id])
+model Materia {
+  id     Int    @id @default(autoincrement())
+  nombre String @unique
+
+  cursos      CursoMateria[]
+  docentes    MateriaDocente[]
+  asistencias Asistencia[]
+  notas       Nota[]
+}
+
+model CursoMateria {
+  id        Int @id @default(autoincrement())
+
+  cursoId   Int
+  materiaId Int
+  docenteId Int?      // ✅ OPCIONAL
+
+  curso   Curso   @relation(fields: [cursoId], references: [id])
+  materia Materia @relation(fields: [materiaId], references: [id])
+  docente  Docente?  @relation(fields: [docenteId], references: [id])
 
   @@unique([cursoId, materiaId])
 }
+
+
 
 model Asistencia {
   id           Int      @id @default(autoincrement())
@@ -161,12 +179,12 @@ model Nota {
 }
 
 model MateriaDocente {
-  id         Int      @id @default(autoincrement())
-  materiaId  Int
-  docenteId  Int
+  id        Int @id @default(autoincrement())
+  materiaId Int
+  docenteId Int
 
-  materia    Materia  @relation(fields: [materiaId], references: [id])
-  docente    Docente  @relation(fields: [docenteId], references: [id])
+  materia Materia @relation(fields: [materiaId], references: [id])
+  docente Docente @relation(fields: [docenteId], references: [id])
 
   @@unique([materiaId, docenteId])
 }

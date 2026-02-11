@@ -16,16 +16,16 @@ export default function DocentesPage() {
   const [search, setSearch] = useState("");
   const [showEdit, setShowEdit] = useState(false);
 
-  // FORM NUEVO DOCENTE
+  // FORM NUEVO DOCENTE (ajustado)
   const [form, setForm] = useState({
     nombre: "",
     apellido: "",
-    email: "",
+    dni: "",
     titulo: "",
     telefono: "",
   });
 
-  // FORM EDITAR DOCENTE
+  // FORM EDITAR DOCENTE (se mantiene)
   const [editData, setEditData] = useState({
     id: "",
     nombre: "",
@@ -52,17 +52,32 @@ export default function DocentesPage() {
   const crear = async (e) => {
     e.preventDefault();
 
-    await client.post("/docentes", form);
+    try {
+      await client.post("/docentes", {
+        nombre: form.nombre,
+        apellido: form.apellido,
+        dni: form.dni,
+        titulo: form.titulo,
+        telefono: form.telefono,
+      });
 
-    setForm({
-      nombre: "",
-      apellido: "",
-      email: "",
-      titulo: "",
-      telefono: "",
-    });
+      alert(
+        `Docente creado correctamente\nCorreo: ${form.dni}@docente.colegio.cl\nContraseña: ${form.dni}`
+      );
 
-    cargar();
+      setForm({
+        nombre: "",
+        apellido: "",
+        dni: "",
+        titulo: "",
+        telefono: "",
+      });
+
+      cargar();
+    } catch (err) {
+      const msg = err.response?.data?.message || "Error al registrar docente";
+      alert(msg);
+    }
   };
 
   /* ===============================
@@ -83,7 +98,12 @@ export default function DocentesPage() {
         GUARDAR EDICIÓN
   =============================== */
   const guardarEdicion = async () => {
-    await client.put(`/docentes/${editData.id}`, editData);
+    await client.put(`/docentes/${editData.id}`, {
+      nombre: editData.nombre,
+      apellido: editData.apellido,
+      titulo: editData.titulo,
+      telefono: editData.telefono,
+    });
     setShowEdit(false);
     cargar();
   };
@@ -109,7 +129,6 @@ export default function DocentesPage() {
 
   return (
     <div>
-      {/* TÍTULO */}
       <h2 className="fw-bold mb-4 d-flex align-items-center gap-2">
         <i className="bi bi-person-badge-fill text-primary fs-3"></i>
         Gestión de Docentes
@@ -120,8 +139,7 @@ export default function DocentesPage() {
         <Col md={4}>
           <Card className="shadow-sm border-0">
             <Card.Body>
-              <h5 className="fw-bold mb-3 d-flex align-items-center gap-2">
-                <i className="bi bi-person-plus-fill text-success"></i>
+              <h5 className="fw-bold mb-3">
                 Registrar Docente
               </h5>
 
@@ -149,12 +167,11 @@ export default function DocentesPage() {
                 </Form.Group>
 
                 <Form.Group className="mb-3">
-                  <Form.Label>Correo</Form.Label>
+                  <Form.Label>DNI</Form.Label>
                   <Form.Control
-                    type="email"
-                    value={form.email}
+                    value={form.dni}
                     onChange={(e) =>
-                      setForm({ ...form, email: e.target.value })
+                      setForm({ ...form, dni: e.target.value })
                     }
                     required
                   />
@@ -180,8 +197,7 @@ export default function DocentesPage() {
                   />
                 </Form.Group>
 
-                <Button type="submit" variant="primary" className="w-100">
-                  <i className="bi bi-save me-2"></i>
+                <Button type="submit" className="w-100">
                   Guardar Docente
                 </Button>
               </Form>
@@ -203,8 +219,8 @@ export default function DocentesPage() {
                 />
               </InputGroup>
 
-              <Table hover responsive className="align-middle">
-                <thead className="table-light">
+              <Table hover responsive>
+                <thead>
                   <tr>
                     <th>Nombre</th>
                     <th>Email</th>
@@ -214,38 +230,30 @@ export default function DocentesPage() {
                 </thead>
 
                 <tbody>
-                  {docentesFiltrados.length > 0 ? (
-                    docentesFiltrados.map((d) => (
-                      <tr key={d.id}>
-                        <td>{d.user.nombre} {d.user.apellido}</td>
-                        <td>{d.user.email}</td>
-                        <td>{d.titulo || "—"}</td>
-                        <td className="text-center">
-                          <Button
-                            variant="outline-warning"
-                            size="sm"
-                            className="me-2"
-                            onClick={() => abrirEditar(d)}
-                          >
-                            <i className="bi bi-pencil-square"></i>
-                          </Button>
-                          <Button
-                            variant="outline-danger"
-                            size="sm"
-                            onClick={() => eliminar(d.id)}
-                          >
-                            <i className="bi bi-trash3"></i>
-                          </Button>
-                        </td>
-                      </tr>
-                    ))
-                  ) : (
-                    <tr>
-                      <td colSpan="4" className="text-center text-muted py-4">
-                        No se encontraron docentes
+                  {docentesFiltrados.map((d) => (
+                    <tr key={d.id}>
+                      <td>{d.user.nombre} {d.user.apellido}</td>
+                      <td>{d.user.email}</td>
+                      <td>{d.titulo || "—"}</td>
+                      <td className="text-center">
+                        <Button
+                          size="sm"
+                          variant="outline-warning"
+                          className="me-2"
+                          onClick={() => abrirEditar(d)}
+                        >
+                          ✏️
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="outline-danger"
+                          onClick={() => eliminar(d.id)}
+                        >
+                          🗑️
+                        </Button>
                       </td>
                     </tr>
-                  )}
+                  ))}
                 </tbody>
               </Table>
             </Card.Body>
@@ -256,10 +264,7 @@ export default function DocentesPage() {
       {/* MODAL EDITAR */}
       <Modal show={showEdit} onHide={() => setShowEdit(false)}>
         <Modal.Header closeButton>
-          <Modal.Title>
-            <i className="bi bi-pencil-square me-2"></i>
-            Editar Docente
-          </Modal.Title>
+          <Modal.Title>Editar Docente</Modal.Title>
         </Modal.Header>
 
         <Modal.Body>
@@ -304,8 +309,7 @@ export default function DocentesPage() {
               />
             </Form.Group>
 
-            <Button className="w-100">
-              <i className="bi bi-check-circle me-2"></i>
+            <Button className="w-100" onClick={guardarEdicion}>
               Guardar Cambios
             </Button>
           </Form>

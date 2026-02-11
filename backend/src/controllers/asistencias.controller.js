@@ -1,4 +1,5 @@
 import { prisma } from "../server.js"; // ✔ Import correcto
+import { notificarApoderado } from "../utils/notificarApoderado.js";
 
 /* ================================
    📌 OBTENER TODAS LAS ASISTENCIAS
@@ -28,10 +29,13 @@ export const createAsistencia = async (req, res) => {
     const { estudianteId, materiaId, fecha, estado } = req.body;
 
     if (!estudianteId || !materiaId || !fecha || !estado) {
-      return res.status(400).json({ message: "Todos los campos son obligatorios" });
+      return res.status(400).json({
+        message: "Todos los campos son obligatorios",
+      });
     }
 
-    const nuevaAsistencia = await prisma.asistencia.create({
+    // 1️⃣ Crear asistencia
+    const asistencia = await prisma.asistencia.create({
       data: {
         estudianteId: Number(estudianteId),
         materiaId: Number(materiaId),
@@ -40,13 +44,25 @@ export const createAsistencia = async (req, res) => {
       },
     });
 
-    res.json(nuevaAsistencia);
+    // 2️⃣ Notificar apoderado (AHORA SÍ CORRECTO)
+    await notificarApoderado(
+      Number(estudianteId),
+      "Registro de Asistencia",
+      `Su hijo/a fue marcado como <b>${estado}</b> el día ${fecha}.`
+    );
+
+    // 3️⃣ Respuesta
+    res.status(201).json(asistencia);
 
   } catch (error) {
     console.error("❌ Error creando asistencia:", error);
-    res.status(500).json({ message: "Error creando asistencia" });
+    res.status(500).json({
+      message: "Error creando asistencia",
+    });
   }
 };
+
+
 
 /* ================================
    📌 ACTUALIZAR ESTADO DE ASISTENCIA
@@ -89,5 +105,53 @@ export const deleteAsistencia = async (req, res) => {
   } catch (error) {
     console.error("❌ Error eliminando asistencia:", error);
     res.status(500).json({ message: "Error eliminando asistencia" });
+  }
+};
+
+/* =========================================================
+   📌 OBTENER ASISTENCIAS POR CURSO Y MATERIA (PROFESOR)
+   ========================================================= */
+export const getAsistenciasByCursoMateriaProfesor = async (req, res) => {
+  try {
+    const { cursoId, materiaId } = req.params;
+    const docenteId = req.user.id;
+
+    const asistencias = await prisma.asistencia.findMany({
+      where: {
+        materiaId: Number(materiaId),
+        estudiante: {
+          cursoId: Number(cursoId),
+        },
+        materia: {
+          cursoMaterias: {
+            some: {
+              cursoId: Number(cursoId),
+              docenteId: docenteId,
+            },
+          },
+        },
+      },
+      include: {
+        estudiante: {
+          include: {
+            user: {
+              select: {
+                nombre: true,
+                apellido: true,
+              },
+            },
+          },
+        },
+        materia: true,
+      },
+      orderBy: { fecha: "desc" },
+    });
+
+    res.json(asistencias);
+  } catch (error) {
+    console.error("❌ Error obteniendo asistencias del profesor:", error);
+    res.status(500).json({
+      message: "Error al obtener asistencias",
+    });
   }
 };

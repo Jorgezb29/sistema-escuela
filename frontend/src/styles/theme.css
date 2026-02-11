@@ -1,0 +1,30 @@
+:root {
+  --main-gradient: linear-gradient(135deg, #9A0E0D 0%, #7A0B0A 100%);
+  --main-color: #9A0E0D;
+}
+
+/* HEADER / TITULOS */
+.page-title {
+  background: var(--main-gradient);
+  color: white;
+  padding: 16px 20px;
+  border-radius: 8px;
+  margin-bottom: 20px;
+}
+
+/* TARJETAS */
+.card-theme {
+  border: none;
+  box-shadow: 0 4px 10px rgba(0,0,0,.08);
+}
+
+/* BOTONES */
+.btn-theme {
+  background: var(--main-gradient);
+  border: none;
+  color: white;
+}
+
+.btn-theme:hover {
+  opacity: 0.9;
+}

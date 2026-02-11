@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useAuth } from "../context/AuthContext";
 import api from "../api/client";
 import {
   Card,
@@ -8,10 +9,11 @@ import {
   Button,
   Table,
   InputGroup,
-  Badge,
+  Badge
 } from "react-bootstrap";
 
 export default function AsistenciasPage() {
+  const { user, loading } = useAuth();
   const [asistencias, setAsistencias] = useState([]);
   const [estudiantes, setEstudiantes] = useState([]);
   const [materias, setMaterias] = useState([]);
@@ -20,17 +22,24 @@ export default function AsistenciasPage() {
     estudianteId: "",
     materiaId: "",
     estado: "",
-    fecha: "",
+    fecha: ""
   });
 
   /* ============================
      CARGA INICIAL
   ============================ */
+
   useEffect(() => {
+    if (loading) return; // ⏳ espera AuthContext
+    if (!user) return; // 🚫 no logueado
+
+    // 🔐 SOLO ADMIN puede cargar estudiantes
+    if (!user.roles.includes("ADMIN")) return;
+
     cargarAsistencias();
     cargarEstudiantes();
     cargarMaterias();
-  }, []);
+  }, [loading, user]);
 
   const cargarAsistencias = async () => {
     const res = await api.get("/asistencias");
@@ -62,14 +71,14 @@ export default function AsistenciasPage() {
       estudianteId: Number(form.estudianteId),
       materiaId: Number(form.materiaId),
       fecha: form.fecha,
-      estado: form.estado,
+      estado: form.estado
     });
 
     setForm({
       estudianteId: "",
       materiaId: "",
       estado: "",
-      fecha: "",
+      fecha: ""
     });
 
     cargarAsistencias();
@@ -101,13 +110,22 @@ export default function AsistenciasPage() {
                     onChange={(e) =>
                       setForm({ ...form, estudianteId: e.target.value })
                     }
+                    required
                   >
                     <option value="">Seleccione estudiante</option>
-                    {estudiantes.map((e) => (
-                      <option key={e.id} value={e.id}>
-                        {e.user?.nombre} {e.user?.apellido}
-                      </option>
-                    ))}
+
+                    {estudiantes.map((e) => {
+                      const nombre = e.user?.nombre || "Sin nombre";
+                      const apellido = e.user?.apellido || "";
+                      const dni = e.dni || "";
+                      const email = e.user?.email || "";
+
+                      return (
+                        <option key={e.id} value={e.id}>
+                          {nombre} {apellido} — {dni || email}
+                        </option>
+                      );
+                    })}
                   </Form.Select>
                 </Form.Group>
 

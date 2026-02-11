@@ -16,10 +16,9 @@ export default function StudentLayout() {
 
   return (
     <div className="d-flex flex-column vh-100">
-
       {/* NAV SUPERIOR */}
       <Navbar
-        bg="success"
+        bg="danger"
         variant="dark"
         className="px-4 shadow-sm d-flex align-items-center"
       >
@@ -51,7 +50,6 @@ export default function StudentLayout() {
 
       {/* MENÚ HORIZONTAL */}
       <Nav className="bg-light border-bottom px-3 py-2 shadow-sm">
-
         <NavLink to="/student" end className="nav-link menu-student">
           <FiHome className="me-2" />
           Inicio
@@ -67,16 +65,25 @@ export default function StudentLayout() {
           Mis Notas
         </NavLink>
 
-        <NavLink to="/student/mis-asistencias" className="nav-link menu-student">
+        <NavLink
+          to="/student/mis-asistencias"
+          className="nav-link menu-student"
+        >
           <FiCalendar className="me-2" />
           Mis Asistencias
         </NavLink>
 
-        <NavLink to="/student/mis-incidencias" className="nav-link menu-student">
+        <NavLink
+          to="/student/mis-incidencias"
+          className="nav-link menu-student"
+        >
           <FiAlertTriangle className="me-2" />
           Mis Incidencias
         </NavLink>
 
+        <NavLink to="asistente-vocacional" className="menu-item nav-link">
+          🤖 Asistente Vocacional
+        </NavLink>
       </Nav>
 
       {/* CONTENIDO */}
