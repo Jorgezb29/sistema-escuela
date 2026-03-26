@@ -1,15 +1,18 @@
-import { Router } from "express";
-import { authAdmin } from "../middlewares/authAdmin.js";
+import express from "express";
 import {
   getUsuarios,
+  getRoles,
+  createUsuario,
   updateUsuario,
   deleteUsuario
-} from "../controllers/users.controller.js";
+} from "../controllers/userController.js";
 
-const router = Router();
+const router = express.Router();
 
-router.get("/users", authAdmin, getUsuarios);
-router.put("/users/:id", authAdmin, updateUsuario);
-router.delete("/users/:id", authAdmin, deleteUsuario);
+router.get("/", getUsuarios);
+router.get("/roles", getRoles);
+router.post("/", createUsuario);
+router.put("/:id", updateUsuario);
+router.delete("/:id", deleteUsuario);
 
 export default router;

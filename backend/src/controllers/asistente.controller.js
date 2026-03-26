@@ -15,69 +15,82 @@ export const chatAsistente = async (req, res) => {
     }
 
     const prompt = `
-Actúa como un ORIENTADOR VOCACIONAL ESCOLAR.
+Eres un ORIENTADOR VOCACIONAL ESCOLAR.
 
-Tu tarea es RESPONDER según la INTENCIÓN de la pregunta del estudiante.
+Responde según la pregunta del estudiante utilizando los datos del test.
 
-TIPOS DE PREGUNTA POSIBLES:
-- Explicación del resultado
-- Recomendación de carreras
-- Habilidades personales
-- Comparación entre áreas
-- Orientación general
-
-REGLAS ESTRICTAS:
+REGLAS:
 - No saludes
 - No felicites
-- No motives
 - No uses emojis
-- No hagas introducciones
-- No escribas más de lo necesario
-- Lenguaje claro, neutral y educativo
-- Responde SOLO lo que el estudiante pregunta
+- No agregues introducciones
+- Responde solo lo solicitado
+- Máximo 3 líneas
 
-DATOS DEL TEST:
+DATOS DEL TEST
 Área recomendada: ${resultado.area}
 
 Puntajes:
-- Exactas: ${resultado.puntaje.exactas}
-- Humanidades: ${resultado.puntaje.humanidades}
-- Salud: ${resultado.puntaje.salud}
+Exactas: ${resultado.puntaje.exactas}
+Humanidades: ${resultado.puntaje.humanidades}
+Salud: ${resultado.puntaje.salud}
 
-PREGUNTA DEL ESTUDIANTE:
-"${mensaje}"
+TIPOS DE RESPUESTA
 
-FORMATO DE RESPUESTA:
+1. Si la pregunta es:
+"¿Por qué me tocó esta área?"
+Responde SOLO el motivo.
 
-Si la pregunta es sobre el RESULTADO:
+Formato:
 Motivo:
-(explicación breve)
+(explicación breve basada en los puntajes)
 
-Si la pregunta es sobre CARRERAS:
-Carreras recomendadas:
-(lista corta)
+2. Si la pregunta es:
+"¿Qué carreras puedo estudiar?"
+Responde SOLO una lista de carreras relacionadas con el área.
 
-Si la pregunta es sobre HABILIDADES:
-Habilidades predominantes:
+Formato:
+Carreras:
+(carreras una por línea)
+
+3. Si la pregunta es:
+"¿En qué soy bueno?"
+Responde SOLO con habilidades relacionadas al área.
+
+Formato:
+Habilidades:
 (lista breve)
 
-Si la pregunta es GENERAL:
+4. Si la pregunta es:
+"¿Puedo cambiar de área?"
+Responde con orientación general breve.
+
+Formato:
 Orientación:
-(respuesta breve y clara)
+(respuesta corta)
+
+PREGUNTA DEL ESTUDIANTE:
+${mensaje}
 `;
 
     const completion = await groq.chat.completions.create({
       model: "llama-3.1-8b-instant",
       temperature: 0.2,
-      messages: [{ role: "user", content: prompt }],
+      max_tokens: 150,
+      messages: [
+        {
+          role: "user",
+          content: prompt,
+        },
+      ],
     });
 
     res.json({
-      respuesta: completion.choices[0].message.content,
+      respuesta: completion.choices[0].message.content.trim(),
     });
 
   } catch (error) {
-    console.error("❌ Error Groq:", error);
+    console.error("Error Groq:", error);
     res.status(500).json({
       message: "Error en el asistente vocacional",
     });

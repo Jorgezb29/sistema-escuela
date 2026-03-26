@@ -1,77 +1,40 @@
-// src/routes/teacher.routes.js
 import { Router } from "express";
-import { authTeacher } from "../middlewares/authTeacher.js";
 
+import { authMiddleware } from "../middlewares/auth.middleware.js"; // ajusta la ruta según tu proyecto
 import {
-  getMateriasDocente,
+  getMisMaterias,
   getEstudiantesPorMateria,
-  getNotasMateria,
-  crearNota,
-  getAsistenciasMateria,
-  crearAsistencia,
-  getIncidenciasMateria,
-  crearIncidencia,
-} from "../controllers/teacher.controller.js";
+  getNotas,
+  upsertNota,
+  getAsistencias,
+  saveAsistencias,
+  getIncidencias,
+  createIncidencia,
+  deleteIncidencia,
+} from "../controllers/teacher.Controller.js";
 
 const router = Router();
 
-/* =======================================================
-   📘 Materias y cursos del docente
-======================================================= */
-router.get("/materias", authTeacher, getMateriasDocente);
+// Todas las rutas requieren token
+router.use(authMiddleware);
 
-/* =======================================================
-   👨‍🎓 Estudiantes por materia
-======================================================= */
-router.get(
-  "/materia/:materiaId/estudiantes",
-  authTeacher,
-  getEstudiantesPorMateria
-);
+/* ── Materias y cursos ── */
+router.get("/materias", getMisMaterias);
 
-/* =======================================================
-   📝 Notas
-======================================================= */
-router.get(
-  "/notas/:materiaId",
-  authTeacher,
-  getNotasMateria
-);
+/* ── Estudiantes ── */
+router.get("/estudiantes/:cursoMateriaId", getEstudiantesPorMateria);
 
-router.post(
-  "/notas",
-  authTeacher,
-  crearNota
-);
+/* ── Notas ── */
+router.get("/notas/:cursoMateriaId", getNotas);
+router.post("/notas", upsertNota);
 
-/* =======================================================
-   📅 Asistencias
-======================================================= */
-router.get(
-  "/asistencias/:materiaId",
-  authTeacher,
-  getAsistenciasMateria
-);
+/* ── Asistencias ── */
+router.get("/asistencias/:cursoMateriaId", getAsistencias);
+router.post("/asistencias", saveAsistencias);
 
-router.post(
-  "/asistencias",
-  authTeacher,
-  crearAsistencia
-);
-
-/* =======================================================
-   ⚠ Incidencias
-======================================================= */
-router.get(
-  "/incidencias/:materiaId",
-  authTeacher,
-  getIncidenciasMateria
-);
-
-router.post(
-  "/incidencias",
-  authTeacher,
-  crearIncidencia
-);
+/* ── Incidencias ── */
+router.get("/incidencias/:cursoMateriaId", getIncidencias);
+router.post("/incidencias", createIncidencia);
+router.delete("/incidencias/:id", deleteIncidencia);
 
 export default router;

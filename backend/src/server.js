@@ -61,7 +61,8 @@ app.use("/api/curso-materia", cursoMateriaRoutes);
 app.use("/api/materias", materiasRoutes);
 app.use("/api/asistencias", asistenciasRoutes);
 app.use("/api/incidencias", incidenciasRoutes);
-app.use("/api/admin", adminRoutes); // ✅ ahora sí funciona
+app.use("/api/admin/users", adminRoutes);; // ✅ ahora sí funciona
+
 
 
 app.use("/api/apoderado", apoderadoRoutes);

@@ -51,3 +51,34 @@ export const createCurso = async (req, res) => {
     res.status(500).json({ message: "Error creando curso" });
   }
 };
+
+/* =========================================================
+   📌 OBTENER MATERIAS CON DOCENTES DE UN CURSO
+   ========================================================= */
+export const getMateriasByCursoConDocentes = async (req, res) => {
+  try {
+    const cursoId = Number(req.params.id);
+
+    const materias = await prisma.cursoMateria.findMany({
+      where: { cursoId },
+      include: {
+        materia: true,
+        docente: {
+          include: {
+            user: {
+              select: {
+                nombre: true,
+                apellido: true
+              }
+            }
+          }
+        }
+      }
+    });
+
+    res.json(materias);
+  } catch (err) {
+    console.error("❌ Error obteniendo materias con docentes:", err);
+    res.status(500).json({ message: "Error obteniendo materias con docentes" });
+  }
+};

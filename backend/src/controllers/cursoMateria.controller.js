@@ -89,3 +89,32 @@ export const getCursosMateriasByProfesor = async (req, res) => {
     });
   }
 };
+
+/* =====================================================
+   📌 ASIGNAR DOCENTE A UNA CURSOMATERIA
+   ===================================================== */
+export const asignarDocenteACursoMateria = async (req, res) => {
+  try {
+    const cursoId = Number(req.params.cursoId);
+    const materiaId = Number(req.params.materiaId);
+    const { docenteId } = req.body;
+
+    const cursoMateria = await prisma.cursoMateria.findFirst({
+      where: { cursoId, materiaId }
+    });
+
+    if (!cursoMateria) {
+      return res.status(404).json({ message: "CursoMateria no encontrada" });
+    }
+
+    const actualizado = await prisma.cursoMateria.update({
+      where: { id: cursoMateria.id },
+      data: { docenteId: docenteId ? Number(docenteId) : null }
+    });
+
+    res.json({ message: "Docente asignado correctamente", actualizado });
+  } catch (error) {
+    console.error("❌ Error asignando docente:", error);
+    res.status(500).json({ message: "Error asignando docente" });
+  }
+};

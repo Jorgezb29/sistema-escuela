@@ -1,203 +1,335 @@
 import { prisma } from "../server.js";
 
-/* =======================================================
-   📘 Materias dictadas por el docente
-======================================================= */
-export const getMateriasDocente = async (req, res) => {
+/* =========================================================
+   🔧 HELPER: obtener docenteId desde req.user
+   ========================================================= */
+const getDocenteId = async (userId) => {
+  const docente = await prisma.docente.findUnique({ where: { userId } });
+  if (!docente) throw new Error("Docente no encontrado");
+  return docente.id;
+};
+
+/* =========================================================
+   📌 GET /teacher/materias
+   Retorna los cursos y materias que dicta el docente
+   ========================================================= */
+export const getMisMaterias = async (req, res) => {
   try {
-    const userId = req.userId;
+    const docenteId = await getDocenteId(req.user.id);
 
-    const docente = await prisma.docente.findUnique({
-      where: { userId },
-    });
-
-    if (!docente) {
-      return res.status(404).json({ message: "No eres profesor" });
-    }
-
-    const materias = await prisma.materiaDocente.findMany({
-      where: { docenteId: docente.id },
+    const cursoMaterias = await prisma.cursoMateria.findMany({
+      where: { docenteId },
       include: {
-        materia: {
-          include: {
-            cursos: {
-              include: { curso: true },
-            },
-          },
-        },
+        curso: true,
+        materia: true,
       },
     });
 
-    const resultado = materias.map((m) => ({
-      materiaId: m.materia.id,
-      materia: m.materia.nombre,
-      cursos: m.materia.cursos.map((c) => ({
-        id: c.curso.id,
-        nombre: c.curso.nombre,
-      })),
-    }));
-
-    res.json(resultado);
+    res.json(cursoMaterias);
   } catch (error) {
-    console.error(error);
+    console.error("❌ Error obteniendo materias del docente:", error);
     res.status(500).json({ message: "Error obteniendo materias" });
   }
 };
 
-/* =======================================================
-   👨‍🎓 Estudiantes por materia
-======================================================= */
+/* =========================================================
+   📌 GET /teacher/estudiantes/:cursoMateriaId
+   Lista de estudiantes de un curso, para una materia dada
+   ========================================================= */
 export const getEstudiantesPorMateria = async (req, res) => {
   try {
-    const { materiaId } = req.params;
+    const docenteId = await getDocenteId(req.user.id);
+    const cursoMateriaId = Number(req.params.cursoMateriaId);
 
-    const estudiantes = await prisma.estudiante.findMany({
-      where: {
-        curso: {
-          materias: {
-            some: {
-              materiaId: Number(materiaId),
-            },
-          },
-        },
-      },
-      include: {
-        user: true,
-      },
+    // Verificar que la cursoMateria pertenece al docente
+    const cursoMateria = await prisma.cursoMateria.findFirst({
+      where: { id: cursoMateriaId, docenteId },
+      include: { curso: true, materia: true },
     });
 
-    res.json(estudiantes);
+    if (!cursoMateria) {
+      return res.status(403).json({ message: "No tienes acceso a esta materia" });
+    }
+
+    const estudiantes = await prisma.estudiante.findMany({
+      where: { cursoId: cursoMateria.cursoId },
+      include: { user: true },
+    });
+
+    res.json({ cursoMateria, estudiantes });
   } catch (error) {
-    console.error(error);
+    console.error("❌ Error obteniendo estudiantes:", error);
     res.status(500).json({ message: "Error obteniendo estudiantes" });
   }
 };
 
-/* =======================================================
-   📝 Notas
-======================================================= */
-export const getNotasMateria = async (req, res) => {
+/* =========================================================
+   📌 GET /teacher/notas/:cursoMateriaId
+   Notas de todos los estudiantes del curso en esa materia
+   ========================================================= */
+export const getNotas = async (req, res) => {
   try {
-    const { materiaId } = req.params;
+    const docenteId = await getDocenteId(req.user.id);
+    const cursoMateriaId = Number(req.params.cursoMateriaId);
 
-    const notas = await prisma.nota.findMany({
-      where: { materiaId: Number(materiaId) },
+    const cursoMateria = await prisma.cursoMateria.findFirst({
+      where: { id: cursoMateriaId, docenteId },
+      include: { curso: true, materia: true },
+    });
+
+    if (!cursoMateria) {
+      return res.status(403).json({ message: "No tienes acceso a esta materia" });
+    }
+
+    const estudiantes = await prisma.estudiante.findMany({
+      where: { cursoId: cursoMateria.cursoId },
       include: {
-        estudiante: {
-          include: { user: true },
-        },
+        user: true,
+        notas: { where: { materiaId: cursoMateria.materiaId } },
       },
     });
 
-    res.json(notas);
+    res.json({ cursoMateria, estudiantes });
   } catch (error) {
-    console.error(error);
+    console.error("❌ Error obteniendo notas:", error);
     res.status(500).json({ message: "Error obteniendo notas" });
   }
 };
 
-export const crearNota = async (req, res) => {
+/* =========================================================
+   📌 POST /teacher/notas
+   Crear o actualizar nota de un estudiante
+   ========================================================= */
+export const upsertNota = async (req, res) => {
   try {
-    const { estudianteId, materiaId, nota, fecha } = req.body;
+    const docenteId = await getDocenteId(req.user.id);
+    const { estudianteId, cursoMateriaId, nota } = req.body;
 
-    const nueva = await prisma.nota.create({
-      data: {
-        estudianteId,
-        materiaId,
-        nota,
-        fecha: new Date(fecha),
+    if (!estudianteId || !cursoMateriaId || nota === undefined) {
+      return res.status(400).json({ message: "Datos incompletos" });
+    }
+
+    const cursoMateria = await prisma.cursoMateria.findFirst({
+      where: { id: Number(cursoMateriaId), docenteId },
+    });
+
+    if (!cursoMateria) {
+      return res.status(403).json({ message: "No tienes acceso a esta materia" });
+    }
+
+    const result = await prisma.nota.upsert({
+      where: {
+        estudianteId_materiaId: {
+          estudianteId: Number(estudianteId),
+          materiaId: cursoMateria.materiaId,
+        },
+      },
+      update: { nota: Number(nota), fecha: new Date() },
+      create: {
+        estudianteId: Number(estudianteId),
+        materiaId: cursoMateria.materiaId,
+        nota: Number(nota),
+        fecha: new Date(),
       },
     });
 
-    res.json(nueva);
+    res.json({ message: "Nota guardada correctamente", nota: result });
   } catch (error) {
-    console.error(error);
-    res.status(500).json({ message: "Error creando nota" });
+    console.error("❌ Error guardando nota:", error);
+    res.status(500).json({ message: "Error guardando nota" });
   }
 };
 
-/* =======================================================
-   📅 Asistencias
-======================================================= */
-export const getAsistenciasMateria = async (req, res) => {
+/* =========================================================
+   📌 GET /teacher/asistencias/:cursoMateriaId?fecha=YYYY-MM-DD
+   Asistencias del día para esa materia
+   ========================================================= */
+export const getAsistencias = async (req, res) => {
   try {
-    const { materiaId } = req.params;
+    const docenteId = await getDocenteId(req.user.id);
+    const cursoMateriaId = Number(req.params.cursoMateriaId);
+    const fecha = req.query.fecha ? new Date(req.query.fecha) : new Date();
 
-    const asistencias = await prisma.asistencia.findMany({
-      where: { materiaId: Number(materiaId) },
+    const cursoMateria = await prisma.cursoMateria.findFirst({
+      where: { id: cursoMateriaId, docenteId },
+      include: { curso: true, materia: true },
+    });
+
+    if (!cursoMateria) {
+      return res.status(403).json({ message: "No tienes acceso a esta materia" });
+    }
+
+    const inicioDia = new Date(fecha);
+    inicioDia.setHours(0, 0, 0, 0);
+    const finDia = new Date(fecha);
+    finDia.setHours(23, 59, 59, 999);
+
+    const estudiantes = await prisma.estudiante.findMany({
+      where: { cursoId: cursoMateria.cursoId },
       include: {
-        estudiante: {
-          include: { user: true },
+        user: true,
+        asistencias: {
+          where: {
+            materiaId: cursoMateria.materiaId,
+            fecha: { gte: inicioDia, lte: finDia },
+          },
         },
       },
     });
 
-    res.json(asistencias);
+    res.json({ cursoMateria, estudiantes, fecha: inicioDia });
   } catch (error) {
-    console.error(error);
+    console.error("❌ Error obteniendo asistencias:", error);
     res.status(500).json({ message: "Error obteniendo asistencias" });
   }
 };
 
-export const crearAsistencia = async (req, res) => {
+/* =========================================================
+   📌 POST /teacher/asistencias
+   Guardar asistencias en lote
+   Body: { cursoMateriaId, fecha, asistencias: [{ estudianteId, estado }] }
+   ========================================================= */
+export const saveAsistencias = async (req, res) => {
   try {
-    const { estudianteId, materiaId, fecha, estado } = req.body;
+    const docenteId = await getDocenteId(req.user.id);
+    const { cursoMateriaId, fecha, asistencias } = req.body;
 
-    const asistencia = await prisma.asistencia.create({
-      data: {
-        estudianteId,
-        materiaId,
-        fecha: new Date(fecha),
-        estado,
-      },
+    if (!cursoMateriaId || !fecha || !asistencias?.length) {
+      return res.status(400).json({ message: "Datos incompletos" });
+    }
+
+    const cursoMateria = await prisma.cursoMateria.findFirst({
+      where: { id: Number(cursoMateriaId), docenteId },
     });
 
-    res.json(asistencia);
+    if (!cursoMateria) {
+      return res.status(403).json({ message: "No tienes acceso a esta materia" });
+    }
+
+    const fechaDate = new Date(fecha);
+
+    const operaciones = asistencias.map(({ estudianteId, estado }) =>
+      prisma.asistencia.upsert({
+        where: {
+          estudianteId_materiaId_fecha: {
+            estudianteId: Number(estudianteId),
+            materiaId: cursoMateria.materiaId,
+            fecha: fechaDate,
+          },
+        },
+        update: { estado },
+        create: {
+          estudianteId: Number(estudianteId),
+          materiaId: cursoMateria.materiaId,
+          fecha: fechaDate,
+          estado,
+        },
+      })
+    );
+
+    await prisma.$transaction(operaciones);
+
+    res.json({ message: "Asistencias guardadas correctamente" });
   } catch (error) {
-    console.error(error);
-    res.status(500).json({ message: "Error registrando asistencia" });
+    console.error("❌ Error guardando asistencias:", error);
+    res.status(500).json({ message: "Error guardando asistencias" });
   }
 };
 
-/* =======================================================
-   ⚠ Incidencias
-======================================================= */
-export const getIncidenciasMateria = async (req, res) => {
+/* =========================================================
+   📌 GET /teacher/incidencias/:cursoMateriaId
+   Incidencias de los estudiantes de esa materia
+   ========================================================= */
+export const getIncidencias = async (req, res) => {
   try {
-    const { materiaId } = req.params;
+    const docenteId = await getDocenteId(req.user.id);
+    const cursoMateriaId = Number(req.params.cursoMateriaId);
 
-    const incidencias = await prisma.incidencia.findMany({
-      where: { materiaId: Number(materiaId) },
-      include: {
-        estudiante: {
-          include: { user: true },
-        },
-      },
+    const cursoMateria = await prisma.cursoMateria.findFirst({
+      where: { id: cursoMateriaId, docenteId },
+      include: { curso: true, materia: true },
     });
 
-    res.json(incidencias);
+    if (!cursoMateria) {
+      return res.status(403).json({ message: "No tienes acceso a esta materia" });
+    }
+
+    const incidencias = await prisma.incidencia.findMany({
+      where: {
+        materiaId: cursoMateria.materiaId,
+        estudiante: { cursoId: cursoMateria.cursoId },
+      },
+      include: { estudiante: { include: { user: true } } },
+      orderBy: { fecha: "desc" },
+    });
+
+    res.json({ cursoMateria, incidencias });
   } catch (error) {
-    console.error(error);
+    console.error("❌ Error obteniendo incidencias:", error);
     res.status(500).json({ message: "Error obteniendo incidencias" });
   }
 };
 
-export const crearIncidencia = async (req, res) => {
+/* =========================================================
+   📌 POST /teacher/incidencias
+   Registrar incidencia
+   ========================================================= */
+export const createIncidencia = async (req, res) => {
   try {
-    const { estudianteId, materiaId, descripcion, fecha } = req.body;
+    const docenteId = await getDocenteId(req.user.id);
+    const { estudianteId, cursoMateriaId, descripcion } = req.body;
+
+    if (!estudianteId || !cursoMateriaId || !descripcion) {
+      return res.status(400).json({ message: "Datos incompletos" });
+    }
+
+    const cursoMateria = await prisma.cursoMateria.findFirst({
+      where: { id: Number(cursoMateriaId), docenteId },
+    });
+
+    if (!cursoMateria) {
+      return res.status(403).json({ message: "No tienes acceso a esta materia" });
+    }
 
     const incidencia = await prisma.incidencia.create({
       data: {
-        estudianteId,
-        materiaId,
+        estudianteId: Number(estudianteId),
+        materiaId: cursoMateria.materiaId,
         descripcion,
-        fecha: new Date(fecha),
+        fecha: new Date(),
       },
     });
 
-    res.json(incidencia);
+    res.status(201).json({ message: "Incidencia registrada", incidencia });
   } catch (error) {
-    console.error(error);
+    console.error("❌ Error creando incidencia:", error);
     res.status(500).json({ message: "Error creando incidencia" });
+  }
+};
+
+/* =========================================================
+   📌 DELETE /teacher/incidencias/:id
+   Eliminar incidencia
+   ========================================================= */
+export const deleteIncidencia = async (req, res) => {
+  try {
+    const docenteId = await getDocenteId(req.user.id);
+    const id = Number(req.params.id);
+
+    const incidencia = await prisma.incidencia.findUnique({
+      where: { id },
+      include: { materia: { include: { cursos: { where: { docenteId } } } } },
+    });
+
+    if (!incidencia || !incidencia.materia?.cursos?.length) {
+      return res.status(403).json({ message: "No tienes permiso para eliminar esta incidencia" });
+    }
+
+    await prisma.incidencia.delete({ where: { id } });
+
+    res.json({ message: "Incidencia eliminada" });
+  } catch (error) {
+    console.error("❌ Error eliminando incidencia:", error);
+    res.status(500).json({ message: "Error eliminando incidencia" });
   }
 };
